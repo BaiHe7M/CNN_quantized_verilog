@@ -19,11 +19,14 @@ module Top_Block1 #(
     parameter FILTER_BATCH = 16,
     parameter FilterSize = 3
 )(
+    input clk,
+    input rst_n,
+
     input [IN_BIT * DATA_W * DATA_H * DATACHANEL - 1 : 0] img_data,
     input [W_BIT * FilterSize * FilterSize * DATACHANEL * FILTER_BATCH - 1 : 0] conv1_weight,
     input [B_BIT * FILTER_BATCH - 1 : 0] conv1_bias,
     input [M_BIT - 1 : 0] M1_param,
-    output [(IN_BIT * (DATA_H/2) * (DATA_W/2) * FILTER_BATCH) - 1 : 0] layer1_out
+    output reg [(IN_BIT * (DATA_H/2) * (DATA_W/2) * FILTER_BATCH) - 1 : 0] layer1_out
 );
 
     // 1. Conv1 (使用参数定义位宽)
@@ -63,11 +66,19 @@ module Top_Block1 #(
     );
 
     // 4. Max Pool
+    wire [(IN_BIT * (DATA_H/2) * (DATA_W/2) * FILTER_BATCH) - 1 : 0] pool_out_wire;
     Max_pool #(
         .BITWIDTH(IN_BIT), .DATAWIDTH(DATA_W), .DATAHEIGHT(DATA_H), .DATACHANNEL(FILTER_BATCH),
         .KWIDTH(2), .KHEIGHT(2)
     ) pool1_inst (
         .data(conv1_relu),
-        .result(layer1_out)
+        .result(pool_out_wire)
     );
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            layer1_out <= 0;
+        else
+            layer1_out <= pool_out_wire; // 寄存器锁存组合逻辑结果
+    end
 endmodule

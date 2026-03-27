@@ -24,7 +24,8 @@ module Top_NetCNN #(
     parameter L2_CH        = 32,   // 第二层卷积输出通道
     parameter NUM_CLASSES  = 2    // 分类任务的类别数 (输出维度)
 )(
-    // 信号定义
+    input clk,
+    input rst_n,
     input [IN_BIT * DATA_H * DATA_W * DATA_C - 1 : 0] img_data,
     
     // Block 1 权重/偏置
@@ -40,28 +41,29 @@ module Top_NetCNN #(
     // 全连接层权重/偏置 (输入长度 = L2通道 * 最终特征图高 * 最终特征图宽)
     // 经过两次 2x2 池化，尺寸变为 DATA_H/4 和 DATA_W/4
     input [W_BIT * L2_CH * (DATA_H/4) * (DATA_W/4) * NUM_CLASSES - 1 : 0] fc_weight,
-    input [B_BIT * NUM_CLASSES - 1 : 0]                                   fc_bias,
-    input [M_BIT - 1 : 0]                                                 M3_param,
-    
-    output [IN_BIT * NUM_CLASSES - 1 : 0] final_out
+    input [B_BIT * NUM_CLASSES - 1 : 0]                                   fc_bias,    
+    output [IN_BIT * NUM_CLASSES - 1 : 0] final_out,
+    output [3:0]                         prediction  // 最终判定结果
 );
 
     // -------------------------------------------------------------------------
     // --- 自动计算中间层尺寸 (Localparam) ---
     // -------------------------------------------------------------------------
-    // Block 1 输出尺寸: (40x40) -> Pool(20x20)
     localparam L1_OUT_H = DATA_H / P_SIZE;
     localparam L1_OUT_W = DATA_W / P_SIZE;
-    
-    // Block 2 输出尺寸: (20x20) -> Pool(10x10)
     localparam L2_OUT_H = L1_OUT_H / P_SIZE;
     localparam L2_OUT_W = L1_OUT_W / P_SIZE;
-    
+
     // FC 输入长度 (Flatten 后的向量长度)
     localparam FC_INPUT_LEN = L2_CH * L2_OUT_H * L2_OUT_W;
 
+    // --- 信号连线---
+    wire [IN_BIT * L1_CH * L1_OUT_H * L1_OUT_W - 1 : 0] block1_to_2;
+    wire [IN_BIT * L2_CH * L2_OUT_H * L2_OUT_W - 1 : 0] block2_to_fc;
+    wire [B_BIT * NUM_CLASSES - 1 : 0]                  fc_out_wire;
+
     // -------------------------------------------------------------------------
-    // --- Block 1: Conv + ReLU + MaxPool ---
+    // --- Block 1: Conv + ReLU + MaxPool ---第一级流水
     // -------------------------------------------------------------------------
     wire [IN_BIT * L1_CH * L1_OUT_H * L1_OUT_W - 1 : 0] block1_out;
     
@@ -70,13 +72,14 @@ module Top_NetCNN #(
         .DATA_H(DATA_H), .DATA_W(DATA_W), .DATACHANEL(DATA_C), 
         .FILTER_BATCH(L1_CH), .FilterSize(K_SIZE)
     ) block1_inst (
+        .clk(clk),        // 传入时钟
+        .rst_n(rst_n),    // 传入复位
         .img_data(img_data),
         .conv1_weight(conv1_weight),
         .conv1_bias(conv1_bias),
         .M1_param(M1_param),
-        .layer1_out(block1_out)
+        .layer1_out(block1_to_2) // 内部已加 reg，上升沿更新
     );
-
     // -------------------------------------------------------------------------
     // --- Block 2: Conv + ReLU + MaxPool ---
     // -------------------------------------------------------------------------
@@ -87,35 +90,38 @@ module Top_NetCNN #(
         .DATA_H(L1_OUT_H), .DATA_W(L1_OUT_W), .DATACHANEL(L1_CH), 
         .FILTER_BATCH(L2_CH), .FilterSize(K_SIZE)
     ) block2_inst (
-        .img_data(block1_out), // 接 Block 1 输出
+        .clk(clk),
+        .rst_n(rst_n),
+        .img_data(block1_to_2), // 接收来自第一级寄存器的稳定数据
         .conv1_weight(conv2_weight),
         .conv1_bias(conv2_bias),
         .M1_param(M2_param),
-        .layer1_out(block2_out)
+        .layer1_out(block2_to_fc) // 内部已加 reg
     );
 
     // -------------------------------------------------------------------------
     // --- FullConnect: (L2_CH * 10 * 10) -> NUM_CLASSES ---
     // -------------------------------------------------------------------------
-    wire [B_BIT * NUM_CLASSES - 1 : 0] fc_raw;
     
     FullConnect #(
         .IN_BIT(IN_BIT), .W_BIT(W_BIT), .B_BIT(B_BIT),
         .LENGTH(FC_INPUT_LEN), .FILTERBATCH(NUM_CLASSES)
     ) fc_inst (
-        .data(block2_out), // 组合逻辑下，block2_out 既是池化结果也是扁平化向量
+        .clk(clk),
+        .rst_n(rst_n),
+        .data(block2_to_fc),
         .weight(fc_weight),
         .bias(fc_bias),
-        .result(fc_raw)
+        .result(fc_out_wire) // 按照刚才的重构，这里已经是 reg 输出
     );
+
+    // --- 结果引出 ---
+    assign fc_raw_out = fc_out_wire;
+
+    // --- 判定逻辑 (Argmax) ---
+    wire signed [B_BIT - 1 : 0] class0_score = $signed(fc_out_wire[B_BIT-1 : 0]);
+    wire signed [B_BIT - 1 : 0] class1_score = $signed(fc_out_wire[2*B_BIT-1 : B_BIT]);
     
-    wire signed [B_BIT - 1 : 0] class0_score = fc_raw[31 : 0];
-    wire signed [B_BIT - 1 : 0] class1_score = fc_raw[63 : 32];
-
-    // 直接输出 32-bit 结果供观察
-    assign fc_raw_out = fc_raw;
-
-    // 硬件 Argmax 判断逻辑
     assign prediction = (class1_score > class0_score) ? 4'd1 : 4'd0;
 
 endmodule
