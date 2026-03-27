@@ -26,9 +26,11 @@ module Max#(
     )
     (
     input [BITWIDTH * LENGTH - 1 : 0] data,
-    output reg signed [BITWIDTH - 1 : 0] result
+    // output reg signed [BITWIDTH - 1 : 0] result
+    output  signed [BITWIDTH - 1 : 0] result
     );
     
+    reg signed [BITWIDTH - 1:0] max_val;
     wire signed [BITWIDTH - 1:0] dataArray[0:LENGTH - 1];
     genvar i;
     generate      
@@ -38,13 +40,23 @@ module Max#(
     endgenerate
     
     integer j;
-    always @(*) begin
-        result = -127;
-        for(j = 0; j < LENGTH; j = j + 1) begin
-            if(dataArray[j] > result) begin
-                result = dataArray[j];
+    // always @(*) begin
+    //     result = -127;
+    //     for(j = 0; j < LENGTH; j = j + 1) begin
+    //         if(dataArray[j] > result) begin
+    //             result = dataArray[j];
+    //         end
+    //     end
+    // end
+        always @(*) begin
+            max_val = 32'sh80000000; // 32位有符号数最小值，防止负数池化失效
+            for(j = 0; j < LENGTH; j = j + 1) begin
+                if(dataArray[j] > max_val) begin
+                    max_val = dataArray[j];
+                end
             end
         end
-    end
+    
+    assign result = max_val;
     
 endmodule

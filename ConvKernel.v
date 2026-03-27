@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "Mult.v"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -34,12 +35,13 @@ module ConvKernel#(
     input [W_BIT * DATACHANNEL * FILTERHEIGHT * FILTERWIDTH - 1 : 0] weight,
     input signed [B_BIT - 1 : 0] bias,
     // 输出位宽设为32，用于后续的再量化(Scaling)
-    output reg signed [B_BIT - 1 : 0] result 
+    // output reg signed [B_BIT - 1 : 0] result
+    output signed [B_BIT - 1 : 0] result 
     );
     
     // 乘积位宽为 IN_BIT + W_BIT
     wire signed [IN_BIT + W_BIT - 1 : 0] out [FILTERHEIGHT * FILTERWIDTH * DATACHANNEL - 1 : 0];
-    
+    reg signed [B_BIT - 1 : 0] sum_tmp; // 内部循环赋值需要 reg
     genvar i;
     generate
         for(i = 0; i < FILTERHEIGHT * FILTERWIDTH * DATACHANNEL; i = i + 1) begin
@@ -51,10 +53,12 @@ module ConvKernel#(
     
     integer j;
     always @(*) begin
-        result = bias; // 初始值为32-bit Bias
+        sum_tmp = bias; // 初始值为32-bit Bias
         for(j = 0; j < FILTERHEIGHT * FILTERWIDTH * DATACHANNEL; j = j + 1) begin
-            result = result + $signed(out[j]);
+            sum_tmp = sum_tmp + $signed(out[j]);
         end
     end
     
+    assign result = sum_tmp;
+
 endmodule

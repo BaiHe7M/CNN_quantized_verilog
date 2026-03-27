@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "ConvKernel.v"
 //////////////////////////////////////////////////////////////////////////////////
 // 卷积模块
 //////////////////////////////////////////////////////////////////////////////////
@@ -29,8 +30,7 @@ module Conv2d #(
     input [W_BIT * FILTERHEIGHT * FILTERWIDTH * DATACHANNEL * FILTERBATCH - 1 : 0] filterWeight,
     input [B_BIT * FILTERBATCH - 1 : 0] filterBias,
     
-    output [B_BIT * FILTERBATCH * OH * OW - 1 : 0] result    
-    );
+    output [B_BIT * FILTERBATCH * (PADDINGENABLE == 0 ? (DATAWIDTH - FILTERWIDTH + 1) / STRIDEWIDTH : (DATAWIDTH / STRIDEWIDTH)) * (PADDINGENABLE == 0 ? (DATAHEIGHT - FILTERHEIGHT + 1) / STRIDEHEIGHT : (DATAHEIGHT / STRIDEHEIGHT)) - 1 : 0] result    );
     // 计算输出特征图的高度 (OH) 和宽度 (OW)
     localparam OH = (PADDINGENABLE == 1) ? (DATAHEIGHT / STRIDEHEIGHT) : ((DATAHEIGHT - FILTERHEIGHT + 1) / STRIDEHEIGHT);
     localparam OW = (PADDINGENABLE == 1) ? (DATAWIDTH / STRIDEWIDTH) : ((DATAWIDTH - FILTERWIDTH + 1) / STRIDEWIDTH);
@@ -44,7 +44,7 @@ module Conv2d #(
     wire [IN_BIT * FILTERHEIGHT * FILTERWIDTH * DATACHANNEL - 1 : 0] paramArray[0: (PADDINGENABLE == 1 ? DATAHEIGHT / STRIDEHEIGHT: (DATAHEIGHT - FILTERHEIGHT + 1) / STRIDEHEIGHT)-1][0: (PADDINGENABLE == 1 ? DATAWIDTH / STRIDEWIDTH : (DATAWIDTH - FILTERWIDTH + 1) / STRIDEWIDTH)-1];
         // 每个输出特征图的weight阵列
     wire [W_BIT * DATACHANNEL * FILTERHEIGHT * FILTERWIDTH - 1 : 0] filterWeightArray[0: FILTERBATCH - 1];
- 
+
     // wire [(BITWIDTH * 2) * FILTERBATCH * (PADDINGENABLE == 0 ? (DATAWIDTH - FILTERWIDTH + 1) / STRIDEWIDTH : (DATAWIDTH / STRIDEWIDTH)) * (PADDINGENABLE == 0 ? (DATAHEIGHT - FILTERHEIGHT + 1) / STRIDEHEIGHT : (DATAHEIGHT / STRIDEHEIGHT)) - 1 : 0] out;
     
     genvar i, j, k, m, n;
@@ -53,7 +53,7 @@ module Conv2d #(
         for(i = 0; i < DATACHANNEL; i = i + 1) begin
             for(j = 0; j < DATAHEIGHT; j = j + 1) begin
                 for(k = 0; k < DATAWIDTH; k = k + 1) begin
-                    assign dataArray[i][j][k] = data[(i * DATAHEIGHT * DATAWIDTH + j * DATAHEIGHT + k) * IN_BIT + IN_BIT - 1 : (i * DATAHEIGHT * DATAWIDTH + j * DATAHEIGHT + k) * IN_BIT];
+                    assign dataArray[i][j][k] = data[(i * DATAHEIGHT * DATAWIDTH + j * DATAWIDTH + k) * IN_BIT + IN_BIT - 1 : (i * DATAHEIGHT * DATAWIDTH + j * DATAWIDTH + k) * IN_BIT];
                 end
             end
         end      

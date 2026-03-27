@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`include "Relu.v"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
@@ -31,7 +32,9 @@ module Relu_activation#(
     //input clk,
     //input clken,
     input [BITWIDTH * DATAHEIGHT * DATAWIDTH * DATACHANNEL - 1:0] data,
-    output reg [BITWIDTH * DATAHEIGHT * DATAWIDTH * DATACHANNEL - 1:0] result
+    // output reg [BITWIDTH * DATAHEIGHT * DATAWIDTH * DATACHANNEL - 1:0] result
+    output [BITWIDTH * DATAHEIGHT * DATAWIDTH * DATACHANNEL - 1:0] result
+
     );
     
     //wire [BITWIDTH * DATAHEIGHT * DATAWIDTH * DATACHANNEL - 1:0] out;

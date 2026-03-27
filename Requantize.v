@@ -13,7 +13,9 @@ module Requantize #(
 )(
     input signed [IN_BIT - 1 : 0] data_in, // 卷积核输出的一个 32-bit 像素
     input [M_BIT - 1 : 0] M_param,         // 该层专用的 M 值
-    output reg signed [OUT_BIT - 1 : 0] data_out
+    // output reg signed [OUT_BIT - 1 : 0] data_out
+    output signed [OUT_BIT - 1 : 0] data_out
+
 );
 
     wire signed [IN_BIT + M_BIT - 1 : 0] multiplied;
@@ -30,13 +32,18 @@ module Requantize #(
     localparam signed [OUT_BIT-1:0] QMAX = 127;
     localparam signed [OUT_BIT-1:0] QMIN = -128;
 
-    always @(*) begin
-        if (shifted > $signed(QMAX))
-            data_out = QMAX;
-        else if (shifted < $signed(QMIN))
-            data_out = QMIN;
-        else
-            data_out = shifted[OUT_BIT-1:0];
-    end
-
+    // always @(*) begin
+    //     if (shifted > $signed(QMAX))
+    //         data_out = QMAX;
+    //     else if (shifted < $signed(QMIN))
+    //         data_out = QMIN;
+    //     else
+    //         data_out = shifted[OUT_BIT-1:0];
+    // end
+// 使用 assign 配合三元运算符实现纯组合逻辑输出
+    // 这样不需要定义 data_out 为 reg，直接驱动 wire 类型的输出端口
+    assign data_out = (shifted > $signed(QMAX)) ? QMAX :
+                      (shifted < $signed(QMIN)) ? QMIN :
+                      shifted[OUT_BIT-1:0];
+                      
 endmodule
