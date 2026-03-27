@@ -36,7 +36,7 @@ module Max_pool#(
     //input clken,
     input [BITWIDTH * DATAWIDTH * DATAHEIGHT * DATACHANNEL - 1 : 0]data,
     // output reg [BITWIDTH * DATAWIDTH / KWIDTH * DATAHEIGHT / KHEIGHT * DATACHANNEL - 1 : 0] result
-    output [BITWIDTH * DATAWIDTH / KWIDTH * DATAHEIGHT / KHEIGHT * DATACHANNEL - 1 : 0] result
+    output [(BITWIDTH * (DATAWIDTH / KWIDTH) * (DATAHEIGHT / KHEIGHT) * DATACHANNEL) - 1 : 0] result
 
     );
     localparam OH = DATAHEIGHT / KHEIGHT;
@@ -52,7 +52,7 @@ module Max_pool#(
         for(i = 0; i < DATACHANNEL; i = i + 1) begin
             for(j = 0; j < DATAHEIGHT; j = j + 1) begin
                 for(k = 0; k < DATAWIDTH; k = k + 1) begin
-                    assign dataArray[i][j][k] = data[(i * DATAHEIGHT * DATAWIDTH + j * DATAHEIGHT + k) * BITWIDTH + BITWIDTH - 1:(i * DATAHEIGHT * DATAWIDTH + j * DATAHEIGHT + k) * BITWIDTH];
+                    assign dataArray[i][j][k] = data[(i * DATAHEIGHT * DATAWIDTH + j * DATAWIDTH + k) * BITWIDTH +: BITWIDTH];
                 end
             end
         end      

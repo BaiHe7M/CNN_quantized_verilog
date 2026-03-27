@@ -16,8 +16,10 @@ module Layer_Block #(
     parameter DATA_W = 40,
     parameter DATACHANEL = 1,
 
-    parameter FILTER_BATCH = 16,
-    parameter FilterSize = 3
+    parameter FILTER_BATCH = 16, // 卷积输出通道数
+    parameter FilterSize = 3,
+
+    parameter POOL_SIZE = 2
 )(
     input clk,
     input rst_n,
@@ -26,8 +28,12 @@ module Layer_Block #(
     input [W_BIT * FilterSize * FilterSize * DATACHANEL * FILTER_BATCH - 1 : 0] conv1_weight,
     input [B_BIT * FILTER_BATCH - 1 : 0] conv1_bias,
     input [M_BIT - 1 : 0] M1_param,
-    output reg [(IN_BIT * (DATA_H/2) * (DATA_W/2) * FILTER_BATCH) - 1 : 0] layer1_out
+    output reg [(IN_BIT * (DATA_H/POOL_SIZE) * (DATA_W/POOL_SIZE) * FILTER_BATCH) - 1 : 0] layer1_out
 );
+
+    localparam POOL_OUT_H = DATA_H / POOL_SIZE;
+    localparam POOL_OUT_W = DATA_W / POOL_SIZE;
+    localparam OUTPUT_WIDTH = IN_BIT * POOL_OUT_H * POOL_OUT_W * FILTER_BATCH;
 
     // 1. Conv1 (使用参数定义位宽)
     wire [B_BIT * FILTER_BATCH * DATA_W * DATA_H - 1 : 0] conv1_raw;
@@ -66,10 +72,11 @@ module Layer_Block #(
     );
 
     // 4. Max Pool
-    wire [(IN_BIT * (DATA_H/2) * (DATA_W/2) * FILTER_BATCH) - 1 : 0] pool_out_wire;
+    wire [OUTPUT_WIDTH - 1 : 0] pool_out_wire;
+
     Max_pool #(
         .BITWIDTH(IN_BIT), .DATAWIDTH(DATA_W), .DATAHEIGHT(DATA_H), .DATACHANNEL(FILTER_BATCH),
-        .KWIDTH(2), .KHEIGHT(2)
+        .KWIDTH(POOL_SIZE), .KHEIGHT(POOL_SIZE)
     ) pool1_inst (
         .data(conv1_relu),
         .result(pool_out_wire)

@@ -42,7 +42,7 @@ module Top_NetCNN #(
     // 经过两次 2x2 池化，尺寸变为 DATA_H/4 和 DATA_W/4
     input [W_BIT * L2_CH * (DATA_H/4) * (DATA_W/4) * NUM_CLASSES - 1 : 0] fc_weight,
     input [B_BIT * NUM_CLASSES - 1 : 0]                                   fc_bias,    
-    output [IN_BIT * NUM_CLASSES - 1 : 0] final_out,
+    output [B_BIT * NUM_CLASSES - 1 : 0] fc_out_wire,
     output [3:0]                         prediction  // 最终判定结果
 );
 
@@ -60,7 +60,7 @@ module Top_NetCNN #(
     // --- 信号连线---
     wire [IN_BIT * L1_CH * L1_OUT_H * L1_OUT_W - 1 : 0] block1_to_2;
     wire [IN_BIT * L2_CH * L2_OUT_H * L2_OUT_W - 1 : 0] block2_to_fc;
-    wire [B_BIT * NUM_CLASSES - 1 : 0]                  fc_out_wire;
+    // wire [B_BIT * NUM_CLASSES - 1 : 0]                  fc_out_wire;
 
     // -------------------------------------------------------------------------
     // --- Block 1: Conv + ReLU + MaxPool ---第一级流水
@@ -70,7 +70,7 @@ module Top_NetCNN #(
     Layer_Block #(
         .IN_BIT(IN_BIT), .W_BIT(W_BIT), .B_BIT(B_BIT), .M_BIT(M_BIT), .SHIFT_N(SHIFT_N),
         .DATA_H(DATA_H), .DATA_W(DATA_W), .DATACHANEL(DATA_C), 
-        .FILTER_BATCH(L1_CH), .FilterSize(K_SIZE)
+        .FILTER_BATCH(L1_CH), .FilterSize(K_SIZE), .POOL_SIZE(P_SIZE)
     ) block1_inst (
         .clk(clk),        // 传入时钟
         .rst_n(rst_n),    // 传入复位
@@ -115,8 +115,6 @@ module Top_NetCNN #(
         .result(fc_out_wire) // 按照刚才的重构，这里已经是 reg 输出
     );
 
-    // --- 结果引出 ---
-    assign fc_raw_out = fc_out_wire;
 
     // --- 判定逻辑 (Argmax) ---
     wire signed [B_BIT - 1 : 0] class0_score = $signed(fc_out_wire[B_BIT-1 : 0]);
