@@ -4,7 +4,7 @@
 `include "Relu_activation.v"
 `include "Max_pool.v"
 
-module Top_Block1 #(
+module Layer_Block #(
     parameter IN_BIT = 8,
     parameter W_BIT  = 4,
     parameter B_BIT  = 32,

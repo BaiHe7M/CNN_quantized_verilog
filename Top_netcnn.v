@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`include "Top_Block1.v"
+`include "Layer_Block.v"
 `include "FullConnect.v"
 `include "Requantize.v"
 
@@ -67,7 +67,7 @@ module Top_NetCNN #(
     // -------------------------------------------------------------------------
     wire [IN_BIT * L1_CH * L1_OUT_H * L1_OUT_W - 1 : 0] block1_out;
     
-    Top_Block1 #(
+    Layer_Block #(
         .IN_BIT(IN_BIT), .W_BIT(W_BIT), .B_BIT(B_BIT), .M_BIT(M_BIT), .SHIFT_N(SHIFT_N),
         .DATA_H(DATA_H), .DATA_W(DATA_W), .DATACHANEL(DATA_C), 
         .FILTER_BATCH(L1_CH), .FilterSize(K_SIZE)
@@ -85,7 +85,7 @@ module Top_NetCNN #(
     // -------------------------------------------------------------------------
     wire [IN_BIT * L2_CH * L2_OUT_H * L2_OUT_W - 1 : 0] block2_out;
     
-    Top_Block1 #(
+    Layer_Block #(
         .IN_BIT(IN_BIT), .W_BIT(W_BIT), .B_BIT(B_BIT), .M_BIT(M_BIT), .SHIFT_N(SHIFT_N),
         .DATA_H(L1_OUT_H), .DATA_W(L1_OUT_W), .DATACHANEL(L1_CH), 
         .FILTER_BATCH(L2_CH), .FilterSize(K_SIZE)
